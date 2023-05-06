@@ -103,6 +103,38 @@ async function init() {
     test.run();
 }
 
+class UniformBuffer {
+    private device: GPUDevice;
+
+    private buffer: GPUBuffer;
+    private bufferSize: number;
+
+    constructor(device: GPUDevice, bufferSize: number) {
+        this.device = device;
+        this.bufferSize = bufferSize;
+
+        this.buffer = this.device.createBuffer({
+            size: this.bufferSize,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+    }
+
+    public writeBuffer(bufferOffset, data, dataOffset, size) {
+        this.device.queue.writeBuffer(
+            this.buffer,
+            bufferOffset,
+            data,
+            dataOffset,
+            size
+        );
+    }
+
+    public get getBuffer() : GPUBuffer {
+        return this.buffer;
+    }
+    
+}
+
 export class Test {
     private device;
     private context;
@@ -118,13 +150,13 @@ export class Test {
     private pipeline: GPURenderPipeline;
     private depthTexture: GPUTexture;
 
-    private cameraUniformBuffer: GPUBuffer;
-    private worldUniformBuffer: GPUBuffer
     private cameraUniformBindGroup: GPUBufferBinding;
     private worldUniformBindGroup : GPUBufferBinding;
 
+    private uniform: UniformBuffer;      // Camera用UniformBuffer
+    private worldUniform: UniformBuffer; // model用のUniformBuffer
+
     private box2UniformBindGroup: GPUBufferBinding;
-    private box2WorldMatrix: mat4 = mat4.create();
 
     private box1Transform: Transform;
     private box2Transform: Transform;
@@ -176,22 +208,19 @@ export class Test {
         // Camera UniformBuffer
         {
             const uniformBufferSize = 4 * (4 * 4) * 2;  // viewMatrix and projectionMatrix
-            this.cameraUniformBuffer = this.device.createBuffer({
-                size: uniformBufferSize,
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            });
+            this.uniform = new UniformBuffer(this.device, uniformBufferSize);
         }
 
         // WorldUniformBuffer
-
         const MatrixSize = 4 * (4 * 4);
         const Offset = 256;
         const uniformBufferSize = Offset + MatrixSize;
         {
-            this.worldUniformBuffer = this.device.createBuffer({
-                size: uniformBufferSize, // 4 * (4 * 4), /* 4byte * 4row * 4col */
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            });
+            // this.worldUniformBuffer = this.device.createBuffer({
+            //     size: uniformBufferSize, // 4 * (4 * 4), /* 4byte * 4row * 4col */
+            //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            // });
+            this.worldUniform = new UniformBuffer(this.device, uniformBufferSize);
         }
 
         this.pipeline = this.device.createRenderPipeline({
@@ -248,7 +277,7 @@ export class Test {
                     {
                         binding: 0,  // @binding(0)
                         resource: {
-                            buffer: this.cameraUniformBuffer
+                            buffer: this.uniform.getBuffer
                         }
                     }
                 ]
@@ -262,7 +291,8 @@ export class Test {
                     {
                         binding: 1,  // @binding(1)
                         resource: {
-                            buffer: this.worldUniformBuffer,
+                            // buffer: this.worldUniformBuffer,
+                            buffer: this.worldUniform.getBuffer,
                             offset: 0,
                             size: MatrixSize
                         }
@@ -278,7 +308,8 @@ export class Test {
                     {
                         binding: 1,
                         resource: {
-                            buffer: this.worldUniformBuffer,
+                            // buffer: this.worldUniformBuffer,
+                            buffer: this.worldUniform.getBuffer,
                             offset: Offset,
                             size: MatrixSize
                         }
@@ -296,8 +327,7 @@ export class Test {
 
         {
             const proj = this.camera.getProjection();
-            this.device.queue.writeBuffer(
-                this.cameraUniformBuffer,
+            this.uniform.writeBuffer(
                 4 * 16 * 0,  // 0
                 proj.buffer,
                 proj.byteOffset,
@@ -305,8 +335,7 @@ export class Test {
             );
         
             const view = this.camera.getView();
-            this.device.queue.writeBuffer(
-                this.cameraUniformBuffer,
+            this.uniform.writeBuffer(
                 4 * 16 * 1,  // 64
                 view.buffer,
                 view.byteOffset,
@@ -346,8 +375,7 @@ export class Test {
             this.box1Transform.update();
 
             const m = this.box1Transform.getWorldMatrix;
-            this.device.queue.writeBuffer(
-                this.worldUniformBuffer,
+            this.worldUniform.writeBuffer(
                 0,
                 m.buffer,
                 m.byteOffset,
@@ -360,9 +388,7 @@ export class Test {
             this.box2Transform.update();
 
             const m = this.box2Transform.getWorldMatrix;
-            console.log(m);
-            this.device.queue.writeBuffer(
-                this.worldUniformBuffer,
+            this.worldUniform.writeBuffer(
                 256,
                 m.buffer,
                 m.byteOffset,
@@ -389,25 +415,5 @@ export class Test {
         this.device.queue.submit([commandEncoder.finish()]);
 
         requestAnimationFrame(this.update.bind(this));
-    }
-
-    private updateTransformMatrix(uniformBuffer: GPUBuffer) {
-        const worldMatrix = mat4.create();
-        const now = Date.now() / 1000;
-
-        mat4.translate(
-            worldMatrix,
-            worldMatrix,
-            [-2, 0, 0]
-        );
-
-        this.device.queue.writeBuffer(
-            uniformBuffer,
-            4 * 16 * 0,
-            worldMatrix.buffer,
-            worldMatrix.byteOffset,
-            worldMatrix.byteLength
-        );
-        // console.log(worldMatrix);
     }
 }
