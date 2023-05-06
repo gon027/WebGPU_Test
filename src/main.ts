@@ -6,6 +6,7 @@ import { App } from "./App";
 import { vertShader } from "./shader/vert";
 import { fragShader } from "./shader/frag";
 import { Box } from "./Primitive/Box";
+import { Transform } from "./Transform";
 
 window.addEventListener(
     "DOMContentLoaded", 
@@ -125,6 +126,9 @@ export class Test {
     private box2UniformBindGroup: GPUBufferBinding;
     private box2WorldMatrix: mat4 = mat4.create();
 
+    private box1Transform: Transform;
+    private box2Transform: Transform;
+
     constructor(device: GPUDevice, context: GPUCanvasContext) {
         this.device = device;
         this.context = context;
@@ -132,6 +136,9 @@ export class Test {
 
         this.quadVertexArray = Box.boxVertexArray;
         this.quadIndexArray = Box.boxIndexArray;
+
+        this.box1Transform = new Transform();
+        this.box2Transform = new Transform();
     }
 
     public run() {
@@ -311,6 +318,8 @@ export class Test {
     }
 
     private update() {
+        const nowTime = Date.now();
+
         const commandEncoder: GPUCommandEncoder = this.device.createCommandEncoder();
         const textureView = this.context.getCurrentTexture().createView();
 
@@ -331,22 +340,33 @@ export class Test {
             }
         };
 
-        this.updateTransformMatrix(this.worldUniformBuffer);
+        {
+            this.box1Transform.setPosition([-2, 0, 0]);
+            this.box1Transform.setRotation([0, nowTime * 0.1, nowTime * 0.05]);
+            this.box1Transform.update();
+
+            const m = this.box1Transform.getWorldMatrix;
+            this.device.queue.writeBuffer(
+                this.worldUniformBuffer,
+                0,
+                m.buffer,
+                m.byteOffset,
+                m.byteLength
+            );
+        }
 
         {
-            this.box2WorldMatrix = mat4.create();
-            mat4.translate(
-                this.box2WorldMatrix,
-                this.box2WorldMatrix,
-                [2, 0, 0]
-            );
+            this.box2Transform.setPosition([2, 1, 0]);
+            this.box2Transform.update();
 
+            const m = this.box2Transform.getWorldMatrix;
+            console.log(m);
             this.device.queue.writeBuffer(
                 this.worldUniformBuffer,
                 256,
-                this.box2WorldMatrix.buffer,
-                this.box2WorldMatrix.byteOffset,
-                this.box2WorldMatrix.byteLength
+                m.buffer,
+                m.byteOffset,
+                m.byteLength
             );
         }
 
