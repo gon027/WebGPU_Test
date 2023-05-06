@@ -2,6 +2,7 @@
 
 import { Camera } from "./Camera";
 import { Box } from "./Primitive/Box";
+import { Primitive } from "./Primitive/Primitive";
 import { Transform } from "./Transform";
 import { UniformBuffer } from "./UniformBuffer";
 
@@ -88,9 +89,6 @@ async function init() {
     });
     console.log(context);
 
-    // const app = new App(device, context);
-    // app.run();
-
     const test = new Test(device, context);
     test.run();
 }
@@ -101,8 +99,7 @@ export class Test {
 
     private camera: Camera;
 
-    private quadVertexArray: Float32Array;
-    private quadIndexArray : Uint16Array;
+    private boxPrimitive: Primitive;
 
     private verticesBuffer: GPUBuffer;
     private indicesBuffer : GPUBuffer;
@@ -124,9 +121,8 @@ export class Test {
         this.context = context;
         this.camera = new Camera();
 
-        this.quadVertexArray = Box.boxVertexArray;
-        this.quadIndexArray = Box.boxIndexArray;
-
+        this.boxPrimitive = Box.create();
+        
         this.box1Transform = new Transform();
         this.box2Transform = new Transform();
     }
@@ -139,22 +135,22 @@ export class Test {
         // Vertex
         {
             this.verticesBuffer = this.device.createBuffer({
-                size: this.quadVertexArray.byteLength,
+                size: this.boxPrimitive.vertices.byteLength,
                 usage: GPUBufferUsage.VERTEX,
                 mappedAtCreation: true
             });
-            new Float32Array(this.verticesBuffer.getMappedRange()).set(this.quadVertexArray);
+            new Float32Array(this.verticesBuffer.getMappedRange()).set(this.boxPrimitive.vertices);
             this.verticesBuffer.unmap();
         }
 
         // Index
         {
             this.indicesBuffer = this.device.createBuffer({
-                size: this.quadIndexArray.byteLength,
+                size: this.boxPrimitive.indices.byteLength,
                 usage: GPUBufferUsage.INDEX,
                 mappedAtCreation: true,
             })
-            new Uint16Array(this.indicesBuffer.getMappedRange()).set(this.quadIndexArray);
+            new Uint16Array(this.indicesBuffer.getMappedRange()).set(this.boxPrimitive.indices);
             this.indicesBuffer.unmap();
         }
 
@@ -357,11 +353,11 @@ export class Test {
 
             {
                 passEncoder.setBindGroup(1, this.worldUniformBindGroup);
-                passEncoder.drawIndexed(this.quadIndexArray.length);
+                passEncoder.drawIndexed(this.boxPrimitive.indices.length);
             }
             {
                 passEncoder.setBindGroup(1, this.box2UniformBindGroup);
-                passEncoder.drawIndexed(this.quadIndexArray.length);
+                passEncoder.drawIndexed(this.boxPrimitive.indices.length);
             }
         }
         passEncoder.end();
