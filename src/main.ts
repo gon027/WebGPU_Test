@@ -1,12 +1,9 @@
 "use strict";
 
-import { mat4 } from "gl-matrix";
 import { Camera } from "./Camera";
-import { App } from "./App";
-import { vertShader } from "./shader/vert";
-import { fragShader } from "./shader/frag";
 import { Box } from "./Primitive/Box";
 import { Transform } from "./Transform";
+import { UniformBuffer } from "./UniformBuffer";
 
 window.addEventListener(
     "DOMContentLoaded", 
@@ -15,11 +12,6 @@ window.addEventListener(
 
 const CanvasWidth: number = 640;
 const CanvasHeight: number = 480;
-
-// デバイス類
-// let context: GPUCanvasContext = null;
-// let adapter: Promis<GPUAdapter?> = null;
-// let device: Promis<GPUDevice> = null;
 
 // シェーダ類
 const vShader = `
@@ -103,60 +95,26 @@ async function init() {
     test.run();
 }
 
-class UniformBuffer {
-    private device: GPUDevice;
-
-    private buffer: GPUBuffer;
-    private bufferSize: number;
-
-    constructor(device: GPUDevice, bufferSize: number) {
-        this.device = device;
-        this.bufferSize = bufferSize;
-
-        this.buffer = this.device.createBuffer({
-            size: this.bufferSize,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        });
-    }
-
-    public writeBuffer(bufferOffset, data, dataOffset, size) {
-        this.device.queue.writeBuffer(
-            this.buffer,
-            bufferOffset,
-            data,
-            dataOffset,
-            size
-        );
-    }
-
-    public get getBuffer() : GPUBuffer {
-        return this.buffer;
-    }
-    
-}
-
 export class Test {
-    private device;
+    private device : GPUDevice;
     private context;
 
     private camera: Camera;
 
     private quadVertexArray: Float32Array;
-    private quadIndexArray: Uint16Array;
+    private quadIndexArray : Uint16Array;
 
     private verticesBuffer: GPUBuffer;
-    private indicesBuffer: GPUBuffer;
+    private indicesBuffer : GPUBuffer;
 
-    private pipeline: GPURenderPipeline;
+    private pipeline    : GPURenderPipeline;
     private depthTexture: GPUTexture;
 
+    private uniform     : UniformBuffer; // Camera用UniformBuffer
+    private worldUniform: UniformBuffer; // model用のUniformBuffer
     private cameraUniformBindGroup: GPUBufferBinding;
     private worldUniformBindGroup : GPUBufferBinding;
-
-    private uniform: UniformBuffer;      // Camera用UniformBuffer
-    private worldUniform: UniformBuffer; // model用のUniformBuffer
-
-    private box2UniformBindGroup: GPUBufferBinding;
+    private box2UniformBindGroup  : GPUBufferBinding;
 
     private box1Transform: Transform;
     private box2Transform: Transform;
@@ -216,10 +174,6 @@ export class Test {
         const Offset = 256;
         const uniformBufferSize = Offset + MatrixSize;
         {
-            // this.worldUniformBuffer = this.device.createBuffer({
-            //     size: uniformBufferSize, // 4 * (4 * 4), /* 4byte * 4row * 4col */
-            //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            // });
             this.worldUniform = new UniformBuffer(this.device, uniformBufferSize);
         }
 
@@ -250,7 +204,7 @@ export class Test {
                 ]
             },
             fragment: {
-                module: /* GPUShaderModule */ this.device.createShaderModule({
+                module: this.device.createShaderModule({
                     code: fShader
                 }),
                 entryPoint: "main",
@@ -291,7 +245,6 @@ export class Test {
                     {
                         binding: 1,  // @binding(1)
                         resource: {
-                            // buffer: this.worldUniformBuffer,
                             buffer: this.worldUniform.getBuffer,
                             offset: 0,
                             size: MatrixSize
@@ -308,7 +261,6 @@ export class Test {
                     {
                         binding: 1,
                         resource: {
-                            // buffer: this.worldUniformBuffer,
                             buffer: this.worldUniform.getBuffer,
                             offset: Offset,
                             size: MatrixSize
@@ -317,7 +269,6 @@ export class Test {
                 ]
             });
         }
-
 
         this.depthTexture = this.device.createTexture({
             size: [CanvasWidth, CanvasHeight],
