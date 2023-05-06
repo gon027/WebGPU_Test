@@ -5,7 +5,7 @@ import { Camera } from "./Camera";
 import { App } from "./App";
 import { vertShader } from "./shader/vert";
 import { fragShader } from "./shader/frag";
-import { Box } from "./Mesh/Box";
+import { Box } from "./Primitive/Box";
 
 window.addEventListener(
     "DOMContentLoaded", 
