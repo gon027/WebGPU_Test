@@ -137,10 +137,6 @@ export class Test {
 
     private init() {
         // Vertex
-        const quadVertexSize = 4 * 8;
-        const quadPositionOffset = 4 * 0;
-        const quadColorOffset = 4 * 4;
-
         {
             this.verticesBuffer = this.device.createBuffer({
                 size: this.quadVertexArray.byteLength,
@@ -177,6 +173,9 @@ export class Test {
             this.worldUniform = new UniformBuffer(this.device, uniformBufferSize);
         }
 
+        const VertexStride = 4 * 8;          // 4byte * 要素8個
+        const VertexPositionOffset = 4 * 0;  // 0番目
+        const VertexColorOffset = 4 * 4;     // 4番目
         this.pipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
@@ -186,17 +185,17 @@ export class Test {
                 entryPoint: 'main',
                 buffers: [
                     {
-                        arrayStride: quadVertexSize,
+                        arrayStride: VertexStride,
                         stepMode: 'vertex',
                         attributes: [
                             {
                                 shaderLocation: 0,
-                                offset: quadPositionOffset,
+                                offset: VertexPositionOffset,  // [0, 0, 0, 1, 1.0, 1.0, 1.0, 1.0] の配列があるとき、0番目のオフセット
                                 format: 'float32x4'
                             },
                             {
                                 shaderLocation: 1,
-                                offset: quadColorOffset,
+                                offset: VertexColorOffset,  // [0, 0, 0, 1, 1.0, 1.0, 1.0, 1.0] の配列があるとき、4番目のオフセット
                                 format: 'float32x4'
                             }
                         ]
@@ -356,11 +355,14 @@ export class Test {
             passEncoder.setVertexBuffer(0, this.verticesBuffer);
             passEncoder.setIndexBuffer(this.indicesBuffer, 'uint16');
 
-            passEncoder.setBindGroup(1, this.worldUniformBindGroup);
-            passEncoder.drawIndexed(this.quadIndexArray.length);
-
-            passEncoder.setBindGroup(1, this.box2UniformBindGroup);
-            passEncoder.drawIndexed(this.quadIndexArray.length);
+            {
+                passEncoder.setBindGroup(1, this.worldUniformBindGroup);
+                passEncoder.drawIndexed(this.quadIndexArray.length);
+            }
+            {
+                passEncoder.setBindGroup(1, this.box2UniformBindGroup);
+                passEncoder.drawIndexed(this.quadIndexArray.length);
+            }
         }
         passEncoder.end();
         this.device.queue.submit([commandEncoder.finish()]);
