@@ -45,6 +45,8 @@ export class Camera {
         window.addEventListener("mousedown", this.onMouseDown.bind(this));
         window.addEventListener("mouseup", this.onMouseUp.bind(this));
         window.addEventListener("mousemove", this.onMouseDrag.bind(this));
+        window.addEventListener("wheel", this.onMouseWheel.bind(this), { passive: false });
+        
     }
 
     public update() {
@@ -119,6 +121,11 @@ export class Camera {
         this.move([mx, -my, 0]);
 
         this.touchStartPoint = current;
+    }
+
+    private onMouseWheel(event) {
+        event.preventDefault();
+        this.move([0, 0, event.deltaY * 0.001]);
     }
 
     public transformCoord(v: vec3, m: mat4): vec3 {
