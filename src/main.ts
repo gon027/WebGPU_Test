@@ -1,5 +1,6 @@
 "use strict";
 
+import { mat4, vec3 } from "gl-matrix";
 import { Camera } from "./Camera";
 import { Box } from "./Primitive/Box";
 import { Primitive } from "./Primitive/Primitive";
@@ -56,6 +57,11 @@ const fShader = `
         return fragColor;
     }
 `;
+
+let x: number = 0;
+let y: number = 0;
+let z: number = 0;
+let rad: number = 0;
 
 async function init() {
     if(!navigator.gpu){
@@ -116,13 +122,15 @@ export class Test {
     private box1Transform: Transform;
     private box2Transform: Transform;
 
+    private tick: number = 0;
+
     constructor(device: GPUDevice, context: GPUCanvasContext) {
         this.device = device;
         this.context = context;
         this.camera = new Camera();
 
         this.boxPrimitive = Box.create();
-        
+
         this.box1Transform = new Transform();
         this.box2Transform = new Transform();
     }
@@ -288,12 +296,13 @@ export class Test {
                 view.byteLength
             );
         }
-
+        
         this.update(); 
     }
 
     private update() {
         const nowTime = Date.now();
+        this.tick += 0.01;
 
         const commandEncoder: GPUCommandEncoder = this.device.createCommandEncoder();
         const textureView = this.context.getCurrentTexture().createView();
@@ -316,6 +325,24 @@ export class Test {
         };
 
         {
+            const proj = this.camera.getProjection();
+            this.uniform.writeBuffer(
+                4 * 16 * 0,  // 0
+                proj.buffer,
+                proj.byteOffset,
+                proj.byteLength
+            );
+        
+            const view = this.camera.getView();
+            this.uniform.writeBuffer(
+                4 * 16 * 1,  // 64
+                view.buffer,
+                view.byteOffset,
+                view.byteLength
+            );
+        }
+
+        {
             this.box1Transform.setPosition([-2, 0, 0]);
             this.box1Transform.setRotation([0, nowTime * 0.1, nowTime * 0.05]);
             this.box1Transform.update();
@@ -331,6 +358,7 @@ export class Test {
 
         {
             this.box2Transform.setPosition([2, 1, 0]);
+            this.box2Transform.setRotation([0, nowTime * 0.1, nowTime * 0.05]);
             this.box2Transform.update();
 
             const m = this.box2Transform.getWorldMatrix;
